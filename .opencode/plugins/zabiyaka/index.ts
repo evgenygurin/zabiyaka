@@ -6,6 +6,7 @@ import { AggressionState } from "./state.js"
 import { shouldIntervene } from "./intervention.js"
 import { generateZabiyakaReply } from "./generation.js"
 import { DEFAULT_CONFIG, parseConfig, type ZabiyakaConfig } from "./config.js"
+import { buildOpenCodeHooks } from "./opencode.js"
 
 type RuntimeDependencies = {
   classify: SemanticInvoker
@@ -41,13 +42,11 @@ export function createZabiyakaRuntime(deps: RuntimeDependencies) {
   }
 }
 
-export const createZabiyakaPlugin = async (): Promise<Hooks> => ({})
-
-const zabiyakaPlugin: Plugin = async (input: PluginInput, options) => {
+export const createZabiyakaPlugin = async (input: PluginInput, options?: Record<string, unknown>): Promise<Hooks> => {
   const config: ZabiyakaConfig = parseConfig({ ...DEFAULT_CONFIG, ...(options ?? {}) })
-  void config
-  void input
-  return createZabiyakaPlugin()
+  return buildOpenCodeHooks(input, config)
 }
+
+const zabiyakaPlugin: Plugin = async (input: PluginInput, options) => createZabiyakaPlugin(input, options)
 
 export default zabiyakaPlugin
