@@ -1,0 +1,19 @@
+{
+  "name": "zabiyaka",
+  "description": "TypeScript plugin framework for OpenCode agent workflows",
+  "version": "0.1.0",
+  "author": {
+    "name": "evgenygurin",
+    "email": "evgeny.gurin@gmail.com"
+  },
+  "homepage": "https://github.com/evgenygurin/zabiyaka",
+  "repository": "https://github.com/evgenygurin/zabiyaka",
+  "license": "MIT",
+  "keywords": [
+    "plugin",
+    "typescript",
+    "agentic",
+    "opencode",
+    "skills"
+  ]
+}

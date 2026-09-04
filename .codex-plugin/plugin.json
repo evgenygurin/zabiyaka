@@ -1,0 +1,40 @@
+{
+  "name": "zabiyaka",
+  "version": "0.1.0",
+  "description": "TypeScript plugin framework for OpenCode agent workflows",
+  "author": {
+    "name": "evgenygurin",
+    "email": "evgeny.gurin@gmail.com",
+    "url": "https://github.com/evgenygurin"
+  },
+  "homepage": "https://github.com/evgenygurin/zabiyaka",
+  "repository": "https://github.com/evgenygurin/zabiyaka",
+  "license": "MIT",
+  "keywords": [
+    "plugin",
+    "typescript",
+    "agentic",
+    "opencode",
+    "skills"
+  ],
+  "skills": "./.opencode/plugins/zabiyaka/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Zabiyaka",
+    "shortDescription": "TypeScript plugin framework for coding agents",
+    "longDescription": "Agentic plugin framework with skills, hooks, and context for OpenCode development workflows.",
+    "developerName": "evgenygurin",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "I've got an idea for something I'd like to build."
+    ],
+    "websiteURL": "https://github.com/evgenygurin/zabiyaka",
+    "brandColor": "#3B82F6",
+    "screenshots": []
+  }
+}

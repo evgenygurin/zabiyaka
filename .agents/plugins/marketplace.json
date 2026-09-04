@@ -1,0 +1,22 @@
+{
+  "name": "zabiyaka",
+  "version": "0.1.0",
+  "description": "Development marketplace for Zabiyaka plugin framework",
+  "interface": {
+    "displayName": "Zabiyaka Dev"
+  },
+  "plugins": [
+    {
+      "name": "zabiyaka",
+      "source": {
+        "source": "url",
+        "url": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
