@@ -1,27 +1,31 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createZabiyakaPlugin } from "../.opencode/plugins/zabiyaka/index.js"
 
-describe("OpenCode hooks", () => {
-  it("tracks a user message without creating a session turn", async () => {
-    const input = { client: {}, project: { id: "project-1" } } as never
+describe("OpenCode hook", () => {
+  it("uses the incoming session id for an intervention turn", async () => {
+    const prompt = vi.fn(async () => ({ data: { parts: [{ type: "text", text: "отвечаю" }] } }))
+    const input = { client: { session: { prompt } }, project: { id: "project-1" } } as never
     const hooks = await createZabiyakaPlugin(input)
-    expect(hooks["chat.message"]).toBeTypeOf("function")
-    await hooks["chat.message"]!({ sessionID: "session-42", messageID: "msg-1" }, {
+
+    await hooks["chat.message"]!({ sessionID: "session-42", messageID: "1" }, {
       message: {} as never,
       parts: [{ type: "text", text: "Прости" }] as never,
     })
+
+    expect(prompt).toHaveBeenCalledTimes(1)
+    expect(prompt).toHaveBeenCalledWith(expect.objectContaining({ path: { id: "session-42" } }))
   })
 
-  it("injects Zabiyaka instructions after observing the current user message", async () => {
-    const input = { client: {}, project: { id: "project-1" } } as never
+  it("does not create a second turn from the Zabiyaka response", async () => {
+    const prompt = vi.fn(async () => ({ data: { parts: [{ type: "text", text: "[Забияка] ладно" }] } }))
+    const input = { client: { session: { prompt } }, project: { id: "project-1" } } as never
     const hooks = await createZabiyakaPlugin(input)
-    await hooks["chat.message"]!({ sessionID: "session-42", messageID: "msg-1" }, {
+
+    await hooks["chat.message"]!({ sessionID: "session-42", messageID: "1" }, {
       message: {} as never,
       parts: [{ type: "text", text: "Прости" }] as never,
     })
-    const output = { system: [] as string[] }
-    await hooks["experimental.chat.system.transform"]!({ sessionID: "session-42", model: {} as never }, output)
-    expect(output.system.length).toBeGreaterThan(0)
-    expect(output.system.join("\n")).toContain("Zabiyaka behavior instruction")
+
+    expect(prompt).toHaveBeenCalledTimes(1)
   })
 })
