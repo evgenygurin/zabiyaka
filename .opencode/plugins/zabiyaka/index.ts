@@ -24,35 +24,27 @@ export function createZabiyakaRuntime(deps: RuntimeDependencies) {
       if (!assessment) return
       state.apply(assessment)
       if (assessment.category !== "apology" && !shouldIntervene(assessment, state.get(), deps.random())) return
-      const reply = await deps.generate({
-        category: assessment.category,
-        aggression: state.get(),
-        messages: context.messages(),
-      })
+      const reply = await deps.generate({ category: assessment.category, aggression: state.get(), messages: context.messages() })
       if (reply) await deps.publish(reply)
     },
     aggression: () => state.get(),
+    messages: () => context.messages(),
   }
 }
 
 type OpenCodeTextPart = { type: "text"; text: string }
+type OpenCodeMessage = { role: "user" | "assistant"; parts: OpenCodeTextPart[] }
 
-type OpenCodeMessage = {
-  role: "user" | "assistant"
-  parts: OpenCodeTextPart[]
+type ModelResponse = { parts?: unknown[] }
+
+function isTextPart(value: unknown): value is OpenCodeTextPart {
+  if (typeof value !== "object" || value === null) return false
+  const part = value as Record<string, unknown>
+  return part.type === "text" && typeof part.text === "string"
 }
 
 function textParts(parts: unknown[]): string {
-  return parts
-    .map((part) => part as unknown)
-    .filter((part): part is OpenCodeTextPart => {
-      if (typeof part !== "object" || part === null) return false
-      const value = part as Record<string, unknown>
-      return value.type === "text" && typeof value.text === "string"
-    })
-    .map((part) => part.text)
-    .join("\n")
-    .trim()
+  return parts.filter(isTextPart).map((part) => part.text).join("\n").trim()
 }
 
 export function toConversationMessage(message: OpenCodeMessage): ConversationMessage | null {
@@ -69,9 +61,8 @@ function semanticFromUserMessage(message: ConversationMessage, previous: readonl
   if (/(дебил|идиот|тупой|заткнись|лох|мудак|fuck|bitch|stupid|idiot)/i.test(text)) {
     return { category: "provocation", confidence: 0.9 }
   }
-  if (previous.some((item) => item.role === "assistant" && /\[забияка\]/i.test(item.content))) {
-    if (/(ты|тебе|твой|your|you)/i.test(text)) return { category: "continuation", confidence: 0.75 }
-  }
+  const zabiyakaPresent = previous.some((item) => item.role === "assistant" && /\[забияка\]/i.test(item.content))
+  if (zabiyakaPresent && /(ты|тебе|твой|your|you)/i.test(text)) return { category: "continuation", confidence: 0.75 }
   if (/(нет|неправда|не согласен|согласен|ошибаешься|wrong|no|disagree)/i.test(text)) {
     return { category: "conflict", confidence: 0.75 }
   }
@@ -81,33 +72,37 @@ function semanticFromUserMessage(message: ConversationMessage, previous: readonl
 export const createZabiyakaPlugin = async (input: PluginInput, options?: Record<string, unknown>): Promise<Hooks> => {
   const config = parseConfig(options)
   const runtimes = new Map<string, ReturnType<typeof createZabiyakaRuntime>>()
-  const internalTurns = new Set<string>()
+  const active = new Set<string>()
 
   const runtimeFor = (sessionID: string) => {
     const existing = runtimes.get(sessionID)
     if (existing) return existing
     const runtime = createZabiyakaRuntime({
-      classify: async (messages) => semanticFromUserMessage(messages[messages.length - 1]!, messages.slice(0, -1)),
+      classify: async (messages) => {
+        const last = messages[messages.length - 1]
+        return last ? semanticFromUserMessage(last, messages.slice(0, -1)) : null
+      },
       generate: async ({ category, aggression, messages }) => {
-        const prompt = buildGenerationPrompt({ category, aggression, messages })
-        internalTurns.add(sessionID)
-        const body: Record<string, unknown> = { parts: [{ type: "text", text: prompt }], noReply: false }
-        if (config.model?.includes("/")) {
-          const [providerID, modelID] = config.model.split("/", 2)
-          body.model = { providerID, modelID }
-        }
+        if (active.has(sessionID)) return null
+        active.add(sessionID)
         try {
+          const prompt = buildGenerationPrompt({ category, aggression, messages })
+          const body: Record<string, unknown> = {
+            parts: [{ type: "text", text: prompt }],
+            noReply: false,
+          }
+          if (config.model?.includes("/")) {
+            const [providerID, modelID] = config.model.split("/", 2)
+            body.model = { providerID, modelID }
+          }
           const response = await input.client.session.prompt({ path: { id: sessionID }, body: body as never })
-          return textParts((response.data as { parts?: unknown[] }).parts ?? []) || null
+          return textParts((response.data as ModelResponse).parts ?? []) || null
         } finally {
-          internalTurns.delete(sessionID)
+          active.delete(sessionID)
         }
       },
       random: Math.random,
-      publish: async (reply) => {
-        const body = { parts: [{ type: "text", text: `[Забияка] ${reply}` }] }
-        await input.client.session.prompt({ path: { id: sessionID }, body: body as never })
-      },
+      publish: async () => {},
     })
     runtimes.set(sessionID, runtime)
     return runtime
@@ -115,8 +110,9 @@ export const createZabiyakaPlugin = async (input: PluginInput, options?: Record<
 
   return {
     "chat.message": async ({ sessionID, messageID }, output) => {
-      const current = toConversationMessage({ role: "user", parts: output.parts as unknown as OpenCodeTextPart[] })
-      if (!current || current.content.startsWith("[Забияка]")) return
+      if (active.has(sessionID)) return
+      const current = toConversationMessage({ role: "user", parts: output.parts.map((part) => part as unknown as OpenCodeTextPart) })
+      if (!current) return
       await runtimeFor(sessionID).handle({ ...current, timestamp: Number(messageID ?? Date.now()) })
     },
   }
