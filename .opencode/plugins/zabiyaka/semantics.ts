@@ -15,9 +15,21 @@ export type SemanticAssessment = {
   confidence: number
 }
 
-export type SemanticClassifier = (
+export type SemanticInvoker = (
   messages: readonly ConversationMessage[],
-) => Promise<SemanticAssessment | null>
+) => Promise<unknown>
+
+export async function classifyConversation(
+  messages: readonly ConversationMessage[],
+  invoke: SemanticInvoker,
+): Promise<SemanticAssessment | null> {
+  try {
+    const result = await invoke(messages)
+    return validateSemanticAssessment(result)
+  } catch {
+    return null
+  }
+}
 
 export function validateSemanticAssessment(value: unknown): SemanticAssessment | null {
   if (!isRecord(value)) return null
