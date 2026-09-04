@@ -173,7 +173,7 @@ P = 0.02 + 0.23 * aggression / 100
 Therefore:
 
 - aggression `0` → `2%`;
-- aggression `50` → `10%`;
+- aggression `50` → `13.5%`;
 - aggression `100` → `25%`.
 
 Randomness is evaluated after semantic assessment. The probability is not a timer and does not imply an unconditional response to every message.
