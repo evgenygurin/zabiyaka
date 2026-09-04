@@ -55,7 +55,6 @@ export async function classifyWithModel(
 }
 
 export function createSessionRuntime(
-  input: PluginInput,
   config: ZabiyakaConfig,
   callModel: ModelCaller,
   publish: MessagePublisher,
@@ -108,7 +107,7 @@ export async function buildOpenCodeHooks(input: PluginInput, configValue: unknow
     await input.client.session.prompt({ path: { id: sessionID }, body: { parts: [{ type: "text", text }] } } as never)
   }
 
-  const runtime = createSessionRuntime(input, config, callModel, publish)
+  const runtime = createSessionRuntime(config, callModel, publish)
   return {
     "chat.message": async ({ sessionID }, output) => {
       const message = toConversationMessage({ info: output.message, parts: output.parts })

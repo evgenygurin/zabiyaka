@@ -47,3 +47,15 @@
 - Ruling: Do not add a Superpowers dependency — the spec explicitly excludes it; cost if wrong is violating the core product boundary.
 - Ruling: Do not modify main directly — SDD requires isolated work; cost if wrong is contaminating the user's main branch.
 
+
+## Completed implementation work
+
+- Task 1: OpenCode plugin scaffold — commit ed1f9f5.
+- Task 2: 20-message context — commit debfcad.
+- Task 3: semantic validation — commit d0926be.
+- Task 4: aggression state — commit 2464166.
+- Task 5/6: adaptive intervention + formula ruling — commit 56a4b27; spec midpoint corrected to 13.5%.
+- Task 7: model-backed semantic classification contract — commit 707473f.
+- Task 8: bounded generation — commit 2edbb9b.
+- Task 9: deterministic runtime flow — commit 2a0180a.
+- OpenCode adapter/config tests are currently uncommitted pending final review.
