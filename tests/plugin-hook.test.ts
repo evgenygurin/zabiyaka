@@ -1,28 +1,27 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { createZabiyakaPlugin } from "../.opencode/plugins/zabiyaka/index.js"
 
-describe("OpenCode hook", () => {
-  it("registers chat.message without private OpenCode APIs", async () => {
-    const prompts: Array<{ sessionID: string; body: unknown }> = []
-    const input = {
-      project: { id: "project-1" },
-      client: {
-        session: {
-          prompt: vi.fn(async (options: { path: { id: string }; body: unknown }) => {
-            prompts.push({ sessionID: options.path.id, body: options.body })
-            return { data: { parts: [{ type: "text", text: "[Забияка] ну наконец-то" }] } }
-          }),
-        },
-      },
-    } as never
-
+describe("OpenCode hooks", () => {
+  it("tracks a user message without creating a session turn", async () => {
+    const input = { client: {}, project: { id: "project-1" } } as never
     const hooks = await createZabiyakaPlugin(input)
     expect(hooks["chat.message"]).toBeTypeOf("function")
     await hooks["chat.message"]!({ sessionID: "session-42", messageID: "msg-1" }, {
       message: {} as never,
       parts: [{ type: "text", text: "Прости" }] as never,
     })
-    expect(prompts).toHaveLength(1)
-    expect(prompts[0]?.sessionID).toBe("session-42")
+  })
+
+  it("injects Zabiyaka instructions after observing the current user message", async () => {
+    const input = { client: {}, project: { id: "project-1" } } as never
+    const hooks = await createZabiyakaPlugin(input)
+    await hooks["chat.message"]!({ sessionID: "session-42", messageID: "msg-1" }, {
+      message: {} as never,
+      parts: [{ type: "text", text: "Прости" }] as never,
+    })
+    const output = { system: [] as string[] }
+    await hooks["experimental.chat.system.transform"]!({ sessionID: "session-42", model: {} as never }, output)
+    expect(output.system.length).toBeGreaterThan(0)
+    expect(output.system.join("\n")).toContain("Zabiyaka behavior instruction")
   })
 })

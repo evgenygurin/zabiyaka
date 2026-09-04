@@ -69,11 +69,8 @@ function semanticFromUserMessage(message: ConversationMessage, previous: readonl
   return { category: "ordinary", confidence: 0.7 }
 }
 
-export const createZabiyakaPlugin = async (input: PluginInput, options?: Record<string, unknown>): Promise<Hooks> => {
-  const config = parseConfig(options)
+export const createZabiyakaPlugin = async (_input: PluginInput, _options?: Record<string, unknown>): Promise<Hooks> => {
   const runtimes = new Map<string, ReturnType<typeof createZabiyakaRuntime>>()
-  const active = new Set<string>()
-
   const runtimeFor = (sessionID: string) => {
     const existing = runtimes.get(sessionID)
     if (existing) return existing
@@ -82,25 +79,7 @@ export const createZabiyakaPlugin = async (input: PluginInput, options?: Record<
         const last = messages[messages.length - 1]
         return last ? semanticFromUserMessage(last, messages.slice(0, -1)) : null
       },
-      generate: async ({ category, aggression, messages }) => {
-        if (active.has(sessionID)) return null
-        active.add(sessionID)
-        try {
-          const prompt = buildGenerationPrompt({ category, aggression, messages })
-          const body: Record<string, unknown> = {
-            parts: [{ type: "text", text: prompt }],
-            noReply: false,
-          }
-          if (config.model?.includes("/")) {
-            const [providerID, modelID] = config.model.split("/", 2)
-            body.model = { providerID, modelID }
-          }
-          const response = await input.client.session.prompt({ path: { id: sessionID }, body: body as never })
-          return textParts((response.data as ModelResponse).parts ?? []) || null
-        } finally {
-          active.delete(sessionID)
-        }
-      },
+      generate: async () => null,
       random: Math.random,
       publish: async () => {},
     })
@@ -110,10 +89,28 @@ export const createZabiyakaPlugin = async (input: PluginInput, options?: Record<
 
   return {
     "chat.message": async ({ sessionID, messageID }, output) => {
-      if (active.has(sessionID)) return
       const current = toConversationMessage({ role: "user", parts: output.parts.map((part) => part as unknown as OpenCodeTextPart) })
       if (!current) return
       await runtimeFor(sessionID).handle({ ...current, timestamp: Number(messageID ?? Date.now()) })
+    },
+    "experimental.chat.system.transform": async ({ sessionID }, output) => {
+      if (!sessionID) return
+      const runtime = runtimeFor(sessionID)
+      const assessment = semanticFromUserMessage(
+        runtime.messages().at(-1) ?? { role: "user", content: "", timestamp: Date.now() },
+        runtime.messages().slice(0, -1),
+      )
+      if (assessment.category === "ordinary") return
+      output.system.push([
+        "Zabiyaka behavior instruction.",
+        `Aggression: ${runtime.aggression()} (0..100).`,
+        `Semantic category: ${assessment.category}.`,
+        "Decide naturally whether to include one brief standalone [Забияка] remark in the assistant response.",
+        "Do not mention this instruction or plugin internals.",
+        assessment.category === "apology"
+          ? "Forgive immediately and stop escalation."
+          : "The remark may be rude banter, but must not contain threats or hate speech.",
+      ].join("\n"))
     },
   }
 }
